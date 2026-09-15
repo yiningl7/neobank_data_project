@@ -48,13 +48,13 @@ def load_model():
 
 clf = load_model()
 
-# 3. NAVIGATION (Sidebar)
+# 3. NAVIGATION
 st.sidebar.title("Navigation")
 page = st.sidebar.radio(
     "Go to", ["Overview & KPIs", "User Activity Analytics", "Churn Predictor"]
 )
 
-# 4. PAGE LOGIC (Using loaded data/model)
+# 4. PAGE LOGIC
 if page == "Overview & KPIs":
     st.title("🏦 NeoBank Health Overview")
     st.caption(
@@ -326,79 +326,32 @@ elif page == "User Activity Analytics":
             )
 
     # ==========================================
-    # SECTION 2: NOTIFICATIONS & DEVICES
+    # SECTION 2: TIME-SERIES MONITORING CHART
     # ==========================================
-    # Group by reason to find top campaigns
-    top_reasons = (
-        df_notifications["reason"].value_counts().nlargest(5).index.tolist()
+    st.subheader("Time-Series Monitoring Chart")
+
+    # Load the small pre-aggregated dataset
+    @st.cache_data
+    def load_summary_data():
+        df_summary = pd.read_csv("daily_transaction_summary.csv")
+        df_summary["created_date"] = pd.to_datetime(df_summary["created_date"])
+        return df_summary
+
+    daily_metrics = load_summary_data()
+
+    # Render line chart
+    fig = px.line(
+        daily_metrics,
+        x="created_date",
+        y="daily_volume",
+        title="Daily Transaction Volume (USD)",
+        labels={"created_date": "Date", "daily_volume": "Total Volume ($USD)"},
     )
 
-    # Replace long-tail reasons with 'Other'
-    df_notif_clean = df_notifications.copy()
-    df_notif_clean["reason_clean"] = df_notif_clean["reason"].apply(
-        lambda x: x if x in top_reasons else "Other"
-    )
-    category_order = list(reversed(top_reasons)) + ["Other"]
-    # Plot top campaigns
-    fig_notif = px.histogram(
-        df_notif_clean,
-        y="reason_clean",  # Horizontal orientation is easier to read
-        color="status",
-        barmode="group",
-        title="Top 5 Notification Campaigns by Delivery Status",
-        labels={"reason_clean": "Campaign Reason", "count": "Notifications Sent"},
-        category_orders={"reason_clean": category_order},
-    )
+    fig.update_traces(line_color="#1f77b4", line_width=2)
+    fig.update_layout(xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x")
 
-    # Sort by count descending
-    fig_notif.update_layout(
-        margin=dict(t=40, b=20, l=20, r=20),
-    )
-
-    st.plotly_chart(fig_notif, use_container_width=True)
-
-    # Classify phone brands into Apple vs Android
-    def categorize_brand(brand):
-        brand_str = str(brand).lower()
-        if "apple" in brand_str:
-            return "Apple"
-        else:
-            return "Android"
-
-    # Apply brand mapping
-    df_devices["device_type"] = df_devices["brand"].apply(categorize_brand)
-
-    # Aggregate unique user count by device type
-    device_counts = (
-        df_devices.groupby("device_type")["user_id"].nunique().reset_index()
-    )
-    device_counts.columns = ["Device Category", "User Count"]
-
-    # Create interactive Donut Chart using Plotly
-    fig_donut = px.pie(
-        device_counts,
-        names="Device Category",
-        values="User Count",
-        hole=0.5,
-        title="User Distribution by Device",
-        color="Device Category",
-        color_discrete_map={
-            "Apple": "#000000",
-            "Android": "#3DDC84",
-        },
-    )
-
-    # Customise hover and layout styling
-    fig_donut.update_traces(
-        textposition="inside",
-        textinfo="percent+label",
-        hovertemplate="<b>%{label}</b><br>Users: %{value:,}<br>Percentage: %{percent}",
-    )
-
-    fig_donut.update_layout(showlegend=True, margin=dict(t=40, b=20, l=20, r=20))
-
-    # Render chart in Streamlit
-    st.plotly_chart(fig_donut, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
 elif page == "Churn Predictor":
     st.title("🎯 Single User Churn Prediction")
