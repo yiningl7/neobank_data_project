@@ -333,7 +333,7 @@ elif page == "User Activity Analytics":
     # Load the small pre-aggregated dataset
     @st.cache_data
     def load_summary_data():
-        df_summary = pd.read_csv("daily_transaction_summary.csv")
+        df_summary = pd.read_csv("data/df_daily_transaction_summary.csv")
         df_summary["created_date"] = pd.to_datetime(df_summary["created_date"])
         return df_summary
 
