@@ -60,7 +60,7 @@ if page == "Project Overview":
     st.subheader("Welcome to the NeoBank Health & Churn Dashboard!")
 
     # Create two columns (adjust the ratio as needed, e.g., [3, 2] or [1, 1])
-    col1, col2 = st.columns([3, 2])
+    col1, col2 = st.columns([5, 2])
 
     with col1:
         st.markdown("""
@@ -391,22 +391,41 @@ elif page == "User Activity Analytics":
     # SECTION 2: TIME-SERIES MONITORING CHART
     # ==========================================
     st.subheader("Time-Series Monitoring Chart")
-
-    # Load the small pre-aggregated dataset
     @st.cache_data
     def load_summary_data():
         df_summary = pd.read_csv("data/df_daily_transaction_summary.csv")
         df_summary["created_date"] = pd.to_datetime(df_summary["created_date"])
         return df_summary
 
-    daily_metrics = load_summary_data()
+    daily_metrics_raw = load_summary_data()
+
+    # Filter metrics by selected country if active
+    if st.session_state.selected_country:
+        daily_metrics = (
+            daily_metrics_raw[
+                daily_metrics_raw["country"] == st.session_state.selected_country
+            ]
+            .groupby("created_date")["daily_volume"]
+            .sum()
+            .reset_index()
+        )
+        chart_title = (
+            f"Daily Transaction Volume (USD) — {st.session_state.selected_country}"
+        )
+    else:
+        daily_metrics = (
+            daily_metrics_raw.groupby("created_date")["daily_volume"]
+            .sum()
+            .reset_index()
+        )
+        chart_title = "Daily Transaction Volume (USD) — Global"
 
     # Render line chart
     fig = px.line(
         daily_metrics,
         x="created_date",
         y="daily_volume",
-        title="Daily Transaction Volume (USD)",
+        title=chart_title,
         labels={"created_date": "Date", "daily_volume": "Total Volume ($USD)"},
     )
 
@@ -417,7 +436,7 @@ elif page == "User Activity Analytics":
 
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("""
-This time-series chart tracks daily `COMPLETED` transaction volumes across our global user base.
+This time-series chart tracks daily `COMPLETED` transaction volumes across the global user base.
 Use this view to identify seasonal fluctuations in payment activity.
 """)
 
