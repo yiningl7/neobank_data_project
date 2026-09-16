@@ -218,9 +218,9 @@ elif page == "User Activity Analytics":
     col_demo1, col_demo2 = st.columns(2)
 
     with col_demo1:
-        # Create decade bins for birth year
+        # Create decade bins for birth year using filtered users dataset
         if "birth_year" in df_users_filtered.columns:
-            # Determine decade boundaries dynamically
+            # Determine decade boundaries dynamically from full range or filtered range
             min_year = int(df_users["birth_year"].min())
             max_year = int(df_users["birth_year"].max())
 
@@ -231,6 +231,7 @@ elif page == "User Activity Analytics":
             bins = list(range(start_decade, end_decade + 10, 10))
             labels = [f"{b}s" for b in bins[:-1]]
 
+            # Use df_users_filtered so the pie chart reacts to map clicks
             df_users_filtered["decade"] = pd.cut(
                 df_users_filtered["birth_year"],
                 bins=bins,
@@ -246,13 +247,20 @@ elif page == "User Activity Analytics":
             )
             decade_counts.columns = ["Decade", "User Count"]
 
+            # Dynamic chart title based on filter status
+            pie_title = (
+                f"User Age Distribution by Decades ({st.session_state.selected_country})"
+                if st.session_state.selected_country
+                else "User Age Distribution by Decades (Global)"
+            )
+
             # Plotly Pie Chart for Decades
             fig_decade = px.pie(
                 decade_counts,
                 names="Decade",
                 values="User Count",
                 hole=0.4,
-                title="User Age Distribution by Decades",
+                title=pie_title,
                 color_discrete_sequence=px.colors.sequential.RdBu,
             )
 
