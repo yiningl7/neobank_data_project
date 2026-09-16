@@ -137,7 +137,9 @@ elif page == "Overview & KPIs":
 
     st.divider()
 
-    # --- Section 3: User Engagement & Preferences ---
+    # ==========================================
+    # SECTION 3: USER ENGAGEMENT & PREFERENCES
+    # ==========================================
     st.subheader("📲 Marketing Reach & Network Density")
 
     # Push Notification Opt-ins
@@ -146,7 +148,6 @@ elif page == "Overview & KPIs":
         if "attributes_notifications_marketing_push" in df_model.columns
         else 0
     )
-    push_pct = (push_users / total_users * 100) if total_users > 0 else 0
 
     # Email Notification Opt-ins
     email_users = (
@@ -154,7 +155,6 @@ elif page == "Overview & KPIs":
         if "attributes_notifications_marketing_email" in df_model.columns
         else 0
     )
-    email_pct = (email_users / total_users * 100) if total_users > 0 else 0
 
     # >5 Contacts Calculation
     users_gt_5_contacts = (
@@ -162,26 +162,62 @@ elif page == "Overview & KPIs":
         if "num_contacts" in df_model.columns
         else 0
     )
-    pct_gt_5_contacts = (
-        (users_gt_5_contacts / total_users * 100) if total_users > 0 else 0
-    )
 
     col_eng1, col_eng2, col_eng3 = st.columns(3)
 
+    # Helper function to create small, consistent donut charts
+    def create_opt_in_pie(opt_in_count, total, title, label_opt_in="Opted In", label_opt_out="Opted Out"):
+        opt_out_count = max(total - opt_in_count, 0)
+        df_pie = pd.DataFrame({
+            "Status": [label_opt_in, label_opt_out],
+            "Users": [opt_in_count, opt_out_count]
+        })
+        fig = px.pie(
+            df_pie,
+            names="Status",
+            values="Users",
+            hole=0.5,
+            title=title,
+            color="Status",
+            color_discrete_map={label_opt_in: "#1f77b4", label_opt_out: "#e0e0e0"}
+        )
+        fig.update_traces(
+            textposition="inside",
+            textinfo="percent",
+            hovertemplate="<b>%{label}</b><br>Count: %{value:,}<br>Percentage: %{percent}"
+        )
+        fig.update_layout(
+            showlegend=True,
+            height=220,
+            margin=dict(t=40, b=10, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+        )
+        return fig
+
     with col_eng1:
-        st.metric("Marketing Push Opt-Ins", f"{int(push_users):,}")
-        st.caption(f"**{push_pct:.1f}%** of users have opted in")
-        st.progress(min(int(push_pct), 100))
+        if total_users > 0:
+            fig_push = create_opt_in_pie(
+                push_users, total_users, "Marketing Push Opt-Ins"
+            )
+            st.plotly_chart(fig_push, use_container_width=True)
 
     with col_eng2:
-        st.metric("Email Opt-Ins", f"{int(email_users):,}")
-        st.caption(f"**{email_pct:.1f}%** of users have opted in")
-        st.progress(min(int(email_pct), 100))
+        if total_users > 0:
+            fig_email = create_opt_in_pie(
+                email_users, total_users, "Email Opt-Ins"
+            )
+            st.plotly_chart(fig_email, use_container_width=True)
 
     with col_eng3:
-        st.metric("Connected Users (>5 Contacts)", f"{users_gt_5_contacts:,}")
-        st.caption(f"**{pct_gt_5_contacts:.1f}%** of users have >5 contacts")
-        st.progress(min(int(pct_gt_5_contacts), 100))
+        if total_users > 0:
+            fig_contacts = create_opt_in_pie(
+                users_gt_5_contacts,
+                total_users,
+                "Connected Users (>5 Contacts)",
+                label_opt_in=">5 Contacts",
+                label_opt_out="≤5 Contacts"
+            )
+            st.plotly_chart(fig_contacts, use_container_width=True)
 
 elif page == "User Activity Analytics":
     st.title("📊 Activity Analytics")
