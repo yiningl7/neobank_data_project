@@ -57,12 +57,25 @@ page = st.sidebar.radio(
 # 4. PAGE LOGIC
 if page == "Project Overview":
     st.title("NeoBank Introduction")
-    st.caption("Welcome to the NeoBank Health & Churn Dashboard!")
-    st.divider()
-    st.write("Neobank is a world famous neo-bank. It is one of the first to have eliminated hidden bank charges when paying with other currencies.")
-    st.write("Dataset contains big amount of transactions made with credit cards, users & devices information.")
-    # Display an image
-    st.image("assets/neobank_banner.png", use_container_width=True)
+    st.subheader("Welcome to the NeoBank Health & Churn Dashboard!")
+
+    # Create two columns (adjust the ratio as needed, e.g., [3, 2] or [1, 1])
+    col1, col2 = st.columns([3, 2])
+
+    with col1:
+        st.markdown("""
+        Neobank is a world-famous neo-bank. It is one of the first to have eliminated hidden bank charges when paying with other currencies.
+
+        The dataset contains a large volume of transactions made with credit cards, along with user and device information.
+
+        This project aims to provide a comprehensive overview of the bank's health, user engagement, and churn prediction capabilities through an interactive dashboard.
+        """)
+
+    with col2:
+        st.image(
+            "assets/neobank_banner.png",
+            use_container_width=True,
+        )
 
 elif page == "Overview & KPIs":
     st.title("🏦 NeoBank Health Overview")
@@ -173,6 +186,30 @@ elif page == "Overview & KPIs":
 elif page == "User Activity Analytics":
     st.title("📊 Activity Analytics")
 
+    # Initialize country filter in session state if not present
+    if "selected_country" not in st.session_state:
+        st.session_state.selected_country = None
+
+    # Reset button when a country filter is active
+    if st.session_state.selected_country:
+        col_title, col_reset = st.columns([4, 1])
+        with col_title:
+            st.markdown(
+                f"**Filtered by Country:** `{st.session_state.selected_country}`"
+            )
+        with col_reset:
+            if st.button("Reset Filter"):
+                st.session_state.selected_country = None
+                st.rerun()
+
+    # Filter df_users if a country is clicked on the map
+    if st.session_state.selected_country:
+        df_users_filtered = df_users[
+            df_users["country"] == st.session_state.selected_country
+        ]
+    else:
+        df_users_filtered = df_users.copy()
+
     # ==========================================
     # SECTION 1: DEMOGRAPHICS (AGE & GEOGRAPHY)
     # ==========================================
@@ -182,7 +219,7 @@ elif page == "User Activity Analytics":
 
     with col_demo1:
         # Create decade bins for birth year
-        if "birth_year" in df_users.columns:
+        if "birth_year" in df_users_filtered.columns:
             # Determine decade boundaries dynamically
             min_year = int(df_users["birth_year"].min())
             max_year = int(df_users["birth_year"].max())
@@ -194,15 +231,15 @@ elif page == "User Activity Analytics":
             bins = list(range(start_decade, end_decade + 10, 10))
             labels = [f"{b}s" for b in bins[:-1]]
 
-            df_users["decade"] = pd.cut(
-                df_users["birth_year"],
+            df_users_filtered["decade"] = pd.cut(
+                df_users_filtered["birth_year"],
                 bins=bins,
                 labels=labels,
                 right=False,
             )
 
             decade_counts = (
-                df_users["decade"]
+                df_users_filtered["decade"]
                 .value_counts()
                 .reset_index()
                 .sort_values("decade")
@@ -234,14 +271,10 @@ elif page == "User Activity Analytics":
         # Geographic Distribution Map
         if "country" in df_users.columns:
             country_counts = (
-                df_users.groupby("country")["user_id"]
-                .nunique()
-                .reset_index()
+                df_users.groupby("country")["user_id"].nunique().reset_index()
             )
             country_counts.columns = ["country", "User Count"]
 
-            # Map 2-letter ISO codes (ISO-2) to 3-letter ISO codes (ISO-3) for Plotly
-            # (Plotly choropleths require ISO-3 codes to map two-letter country identifiers properly)
             iso2_to_iso3 = {
                 "AF": "AFG",
                 "AL": "ALB",
@@ -315,6 +348,7 @@ elif page == "User Activity Analytics":
                 locations="iso_alpha",
                 color="User Count",
                 hover_name="country",
+                custom_data=["country"],
                 title="Global User Distribution by Country",
                 color_continuous_scale="Viridis",
             )
@@ -324,15 +358,34 @@ elif page == "User Activity Analytics":
                 geo=dict(
                     showframe=False,
                     showcoastlines=True,
-                    projection_type="equirectangular",  # Flat 2D map projection
+                    projection_type="equirectangular",
                     visible=True,
                 ),
                 margin=dict(t=40, b=20, l=20, r=20),
             )
 
-            st.plotly_chart(
-                fig_map, use_container_width=True, config={"scrollZoom": False}
+            # Render map with interactive click capture enabled
+            map_event = st.plotly_chart(
+                fig_map,
+                use_container_width=True,
+                config={"scrollZoom": False},
+                on_select="rerun",
+                selection_mode="points",
             )
+
+            # Capture country click event from the map
+            if (
+                map_event
+                and "selection" in map_event
+                and map_event["selection"]["points"]
+            ):
+                clicked_point = map_event["selection"]["points"][0]
+                if "customdata" in clicked_point:
+                    selected_code = clicked_point["customdata"][0]
+                    if st.session_state.selected_country != selected_code:
+                        st.session_state.selected_country = selected_code
+                        st.rerun()
+
     st.divider()
     # ==========================================
     # SECTION 2: TIME-SERIES MONITORING CHART
@@ -358,13 +411,16 @@ elif page == "User Activity Analytics":
     )
 
     fig.update_traces(line_color="#1f77b4", line_width=2)
-    fig.update_layout(xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x")
+    fig.update_layout(
+        xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x"
+    )
 
     st.plotly_chart(fig, use_container_width=True)
     st.markdown("""
 This time-series chart tracks daily `COMPLETED` transaction volumes across our global user base.
 Use this view to identify seasonal fluctuations in payment activity.
 """)
+
 elif page == "Churn Predictor":
     st.title("🎯 Single User Churn Prediction")
     st.write(
