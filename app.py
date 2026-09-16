@@ -186,16 +186,24 @@ elif page == "Overview & KPIs":
 elif page == "User Activity Analytics":
     st.title("📊 Activity Analytics")
 
-    # Initialize country filter in session state if not present
+    # 1. Initialize session state key if not present
     if "selected_country" not in st.session_state:
         st.session_state.selected_country = None
 
-    # Reset button when a country filter is active
+    # 2. Define df_users_filtered BEFORE drawing any charts
+    if st.session_state.selected_country:
+        df_users_filtered = df_users[
+            df_users["country"] == st.session_state.selected_country
+        ].copy()
+    else:
+        df_users_filtered = df_users.copy()
+
+    # 3. Add a Reset Button at the top
     if st.session_state.selected_country:
         col_title, col_reset = st.columns([4, 1])
         with col_title:
-            st.markdown(
-                f"**Filtered by Country:** `{st.session_state.selected_country}`"
+            st.info(
+                f"Active Filter: Country = **{st.session_state.selected_country}**"
             )
         with col_reset:
             if st.button("Reset Filter"):
@@ -209,29 +217,25 @@ elif page == "User Activity Analytics":
         ]
     else:
         df_users_filtered = df_users.copy()
-
     # ==========================================
     # SECTION 1: DEMOGRAPHICS (AGE & GEOGRAPHY)
     # ==========================================
     st.subheader("Demographic Breakdown")
-
     col_demo1, col_demo2 = st.columns(2)
-
     with col_demo1:
-        # Create decade bins for birth year using filtered users dataset
+        st.subheader("User Age Distribution")
+        # Create decade bins using df_users_filtered
         if "birth_year" in df_users_filtered.columns:
-            # Determine decade boundaries dynamically from full range or filtered range
             min_year = int(df_users["birth_year"].min())
             max_year = int(df_users["birth_year"].max())
 
-            # Define decade bins (e.g., 1950s to 2010s)
             start_decade = (min_year // 10) * 10
             end_decade = ((max_year // 10) + 1) * 10
 
             bins = list(range(start_decade, end_decade + 10, 10))
             labels = [f"{b}s" for b in bins[:-1]]
 
-            # Use df_users_filtered so the pie chart reacts to map clicks
+            # Filtered decade cutting
             df_users_filtered["decade"] = pd.cut(
                 df_users_filtered["birth_year"],
                 bins=bins,
@@ -247,14 +251,12 @@ elif page == "User Activity Analytics":
             )
             decade_counts.columns = ["Decade", "User Count"]
 
-            # Dynamic chart title based on filter status
             pie_title = (
                 f"User Age Distribution by Decades ({st.session_state.selected_country})"
                 if st.session_state.selected_country
                 else "User Age Distribution by Decades (Global)"
             )
 
-            # Plotly Pie Chart for Decades
             fig_decade = px.pie(
                 decade_counts,
                 names="Decade",
@@ -276,6 +278,7 @@ elif page == "User Activity Analytics":
             st.plotly_chart(fig_decade, use_container_width=True)
 
     with col_demo2:
+        st.subheader("Global User Distribution")
         # Geographic Distribution Map
         if "country" in df_users.columns:
             country_counts = (
