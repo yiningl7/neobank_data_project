@@ -223,7 +223,6 @@ elif page == "User Activity Analytics":
     st.subheader("Demographic Breakdown")
     col_demo1, col_demo2 = st.columns(2)
     with col_demo1:
-        st.subheader("User Age Distribution")
         # Create decade bins using df_users_filtered
         if "birth_year" in df_users_filtered.columns:
             min_year = int(df_users["birth_year"].min())
@@ -278,7 +277,6 @@ elif page == "User Activity Analytics":
             st.plotly_chart(fig_decade, use_container_width=True)
 
     with col_demo2:
-        st.subheader("Global User Distribution")
         # Geographic Distribution Map
         if "country" in df_users.columns:
             country_counts = (
