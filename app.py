@@ -56,7 +56,7 @@ page = st.sidebar.radio(
 
 # 4. PAGE LOGIC
 if page == "Project Overview":
-    st.title("NeoBank Introduction")
+    st.title("Introduction")
     st.subheader("Welcome to the NeoBank Health & Churn Dashboard!")
 
     # Create two columns (adjust the ratio as needed, e.g., [3, 2] or [1, 1])
@@ -64,7 +64,7 @@ if page == "Project Overview":
 
     with col1:
         st.markdown("""
-        Neobank is a world-famous neo-bank. It is one of the first to have eliminated hidden bank charges when paying with other currencies.
+        This is a world-famous neo-bank. It is one of the first to have eliminated hidden bank charges when paying with other currencies.
 
         The dataset contains a large volume of transactions made with credit cards, along with user and device information.
 
