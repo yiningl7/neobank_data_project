@@ -51,11 +51,20 @@ clf = load_model()
 # 3. NAVIGATION
 st.sidebar.title("Navigation")
 page = st.sidebar.radio(
-    "Go to", ["Overview & KPIs", "User Activity Analytics", "Churn Predictor"]
+    "Go to", ["Neobank Introduction", "Overview & KPIs", "User Activity Analytics", "Churn Predictor"]
 )
 
 # 4. PAGE LOGIC
-if page == "Overview & KPIs":
+if page == "Project Overview":
+    st.title("NeoBank Introduction")
+    st.caption("Welcome to the NeoBank Health & Churn Dashboard!")
+    st.divider()
+    st.write("Neobank is a world famous neo-bank. It is one of the first to have eliminated hidden bank charges when paying with other currencies.")
+    st.write("Dataset contains big amount of transactions made with credit cards, users & devices information.")
+    # Display an image
+    st.image("assets/neobank_banner.png", use_container_width=True)
+
+elif page == "Overview & KPIs":
     st.title("🏦 NeoBank Health Overview")
     st.caption(
         "Executive dashboard tracking user acquisition, engagement, and operational metrics."
@@ -324,7 +333,7 @@ elif page == "User Activity Analytics":
             st.plotly_chart(
                 fig_map, use_container_width=True, config={"scrollZoom": False}
             )
-
+    st.divider()
     # ==========================================
     # SECTION 2: TIME-SERIES MONITORING CHART
     # ==========================================
