@@ -362,6 +362,7 @@ elif page == "User Activity Analytics":
     # SECTION 2: TIME-SERIES MONITORING CHART
     # ==========================================
     st.subheader("Time-Series Monitoring Chart")
+
     @st.cache_data
     def load_summary_data():
         df_summary = pd.read_csv("data/df_daily_transaction_summary.csv")
@@ -373,16 +374,17 @@ elif page == "User Activity Analytics":
     daily_metrics_raw = load_summary_data()
     filtered_df = daily_metrics_raw.copy()
 
-    # Apply active country filter
+    # Filter summary data by selected country
     if st.session_state.selected_country and "country" in filtered_df.columns:
         filtered_df = filtered_df[
             filtered_df["country"] == st.session_state.selected_country
         ]
 
-    # Apply active user ID filter when age group is selected
-    if st.session_state.selected_decade and "user_id" in filtered_df.columns:
-        valid_user_ids = df_users_filtered["user_id"].unique()
-        filtered_df = filtered_df[filtered_df["user_id"].isin(valid_user_ids)]
+    # Filter summary data by selected age group (decade)
+    if st.session_state.selected_decade and "decade" in filtered_df.columns:
+        filtered_df = filtered_df[
+            filtered_df["decade"] == st.session_state.selected_decade
+        ]
 
     if not filtered_df.empty:
         daily_metrics = (
