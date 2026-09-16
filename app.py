@@ -51,7 +51,7 @@ clf = load_model()
 # 3. NAVIGATION
 st.sidebar.title("Navigation")
 page = st.sidebar.radio(
-    "Go to", ["Neobank Introduction", "Overview & KPIs", "User Activity Analytics", "Churn Predictor"]
+    "Go to", ["Project Overview", "Overview & KPIs", "User Activity Analytics", "Churn Predictor"]
 )
 
 # 4. PAGE LOGIC
@@ -361,7 +361,10 @@ elif page == "User Activity Analytics":
     fig.update_layout(xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x")
 
     st.plotly_chart(fig, use_container_width=True)
-
+    st.markdown("""
+This time-series chart tracks daily `COMPLETED` transaction volumes across our global user base.
+Use this view to identify seasonal fluctuations in payment activity.
+""")
 elif page == "Churn Predictor":
     st.title("🎯 Single User Churn Prediction")
     st.write(
