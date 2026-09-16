@@ -186,38 +186,44 @@ elif page == "Overview & KPIs":
 elif page == "User Activity Analytics":
     st.title("📊 Activity Analytics")
 
-    # 1. Initialize session state keys if not present
+    # 1. Initialize session state keys
     if "selected_country" not in st.session_state:
         st.session_state.selected_country = None
     if "selected_decade" not in st.session_state:
         st.session_state.selected_decade = None
 
-    # 2. Define df_users_filtered BEFORE drawing any charts
+    # Helper function to compute decade bins consistently
+    def assign_decades(df, min_y, max_y):
+        start_decade = (min_y // 10) * 10
+        end_decade = ((max_y // 10) + 1) * 10
+        bins = list(range(start_decade, end_decade + 10, 10))
+        labels = [f"{b}s" for b in bins[:-1]]
+        df["decade"] = pd.cut(
+            df["birth_year"],
+            bins=bins,
+            labels=labels,
+            right=False,
+        )
+        return df
+
+    # Global min/max birth year for consistent decade binning across calculations
+    if "birth_year" in df_users.columns:
+        min_year = int(df_users["birth_year"].min())
+        max_year = int(df_users["birth_year"].max())
+        df_users = assign_decades(df_users, min_year, max_year)
+
+    # 2. Build filtered user dataset based on BOTH selected country & decade
     df_users_filtered = df_users.copy()
     if st.session_state.selected_country:
         df_users_filtered = df_users_filtered[
             df_users_filtered["country"] == st.session_state.selected_country
         ]
     if st.session_state.selected_decade:
-        # Pre-assign decade bin to filter by selected decade
-        if "birth_year" in df_users_filtered.columns:
-            min_year = int(df_users["birth_year"].min())
-            max_year = int(df_users["birth_year"].max())
-            start_decade = (min_year // 10) * 10
-            end_decade = ((max_year // 10) + 1) * 10
-            bins = list(range(start_decade, end_decade + 10, 10))
-            labels = [f"{b}s" for b in bins[:-1]]
-            df_users_filtered["decade"] = pd.cut(
-                df_users_filtered["birth_year"],
-                bins=bins,
-                labels=labels,
-                right=False,
-            )
-            df_users_filtered = df_users_filtered[
-                df_users_filtered["decade"] == st.session_state.selected_decade
-            ]
+        df_users_filtered = df_users_filtered[
+            df_users_filtered["decade"] == st.session_state.selected_decade
+        ]
 
-    # 3. Add a Reset Button at the top
+    # 3. Reset button for both active filters
     if st.session_state.selected_country or st.session_state.selected_decade:
         col_title, col_reset = st.columns([4, 1])
         with col_title:
@@ -239,30 +245,14 @@ elif page == "User Activity Analytics":
     st.subheader("Demographic Breakdown")
     col_demo1, col_demo2 = st.columns(2)
     with col_demo1:
-        # Create decade bins using df_users (filtered by country if active)
+        # Pie chart reflects country filter, but maintains total age options for clicking
         df_pie_source = df_users.copy()
         if st.session_state.selected_country:
             df_pie_source = df_pie_source[
                 df_pie_source["country"] == st.session_state.selected_country
             ]
 
-        if "birth_year" in df_pie_source.columns:
-            min_year = int(df_users["birth_year"].min())
-            max_year = int(df_users["birth_year"].max())
-
-            start_decade = (min_year // 10) * 10
-            end_decade = ((max_year // 10) + 1) * 10
-
-            bins = list(range(start_decade, end_decade + 10, 10))
-            labels = [f"{b}s" for b in bins[:-1]]
-
-            df_pie_source["decade"] = pd.cut(
-                df_pie_source["birth_year"],
-                bins=bins,
-                labels=labels,
-                right=False,
-            )
-
+        if "decade" in df_pie_source.columns:
             decade_counts = (
                 df_pie_source["decade"]
                 .value_counts()
@@ -296,7 +286,7 @@ elif page == "User Activity Analytics":
                 showlegend=True, margin=dict(t=40, b=20, l=20, r=20)
             )
 
-            # Render pie chart with click event capture enabled
+            # Capture pie slice click event
             pie_event = st.plotly_chart(
                 fig_decade,
                 use_container_width=True,
@@ -304,7 +294,6 @@ elif page == "User Activity Analytics":
                 selection_mode="points",
             )
 
-            # Capture decade click event
             if (
                 pie_event
                 and "selection" in pie_event
@@ -318,7 +307,7 @@ elif page == "User Activity Analytics":
                         st.rerun()
 
     with col_demo2:
-        # Geographic Distribution Map
+        # Map uses df_users_filtered (filtered by active decade choice)
         if "country" in df_users_filtered.columns:
             country_counts = (
                 df_users_filtered.groupby("country")["user_id"].nunique().reset_index()
@@ -396,15 +385,13 @@ elif page == "User Activity Analytics":
         return df_summary
 
     daily_metrics_raw = load_summary_data()
-
-    # Filter transactions based on active user filters
     filtered_df = daily_metrics_raw.copy()
 
-    # Apply country filter if selected
+    # Filter transactions by country
     if st.session_state.selected_country and "country" in filtered_df.columns:
         filtered_df = filtered_df[filtered_df["country"] == st.session_state.selected_country]
 
-    # Apply user_id filter if decade is selected and user IDs exist in summary table
+    # Filter transactions by selected age decade using user IDs
     if st.session_state.selected_decade and "user_id" in filtered_df.columns:
         valid_user_ids = df_users_filtered["user_id"].unique()
         filtered_df = filtered_df[filtered_df["user_id"].isin(valid_user_ids)]
@@ -415,20 +402,20 @@ elif page == "User Activity Analytics":
             .sum()
             .reset_index()
         )
-        title_suffix = []
+        title_parts = []
         if st.session_state.selected_country:
-            title_suffix.append(st.session_state.selected_country)
+            title_parts.append(st.session_state.selected_country)
         if st.session_state.selected_decade:
-            title_suffix.append(st.session_state.selected_decade)
+            title_parts.append(st.session_state.selected_decade)
 
-        suffix_str = f" — {' | '.join(title_suffix)}" if title_suffix else " — Global"
-        chart_title = f"Daily Transaction Volume (USD){suffix_str}"
+        suffix = f" — {' | '.join(title_parts)}" if title_parts else " — Global"
+        chart_title = f"Daily Transaction Volume (USD){suffix}"
     else:
         daily_metrics = pd.DataFrame(columns=["created_date", "daily_volume"])
         chart_title = "Daily Transaction Volume (USD) (No Data)"
 
     if daily_metrics.empty:
-        st.warning("No transaction records found for the selected filters.")
+        st.warning("No transaction records found for the active filter combination.")
     else:
         fig = px.line(
             daily_metrics,
@@ -440,12 +427,10 @@ elif page == "User Activity Analytics":
                 "daily_volume": "Total Volume ($USD)",
             },
         )
-
         fig.update_traces(line_color="#1f77b4", line_width=2)
         fig.update_layout(
             xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x"
         )
-
         st.plotly_chart(fig, use_container_width=True)
 
 elif page == "Churn Predictor":
