@@ -186,45 +186,67 @@ elif page == "Overview & KPIs":
 elif page == "User Activity Analytics":
     st.title("📊 Activity Analytics")
 
-    # 1. Initialize session state key if not present
+    # 1. Initialize session state keys if not present
     if "selected_country" not in st.session_state:
         st.session_state.selected_country = None
+    if "selected_decade" not in st.session_state:
+        st.session_state.selected_decade = None
 
     # 2. Define df_users_filtered BEFORE drawing any charts
+    df_users_filtered = df_users.copy()
     if st.session_state.selected_country:
-        df_users_filtered = df_users[
-            df_users["country"] == st.session_state.selected_country
-        ].copy()
-    else:
-        df_users_filtered = df_users.copy()
+        df_users_filtered = df_users_filtered[
+            df_users_filtered["country"] == st.session_state.selected_country
+        ]
+    if st.session_state.selected_decade:
+        # Pre-assign decade bin to filter by selected decade
+        if "birth_year" in df_users_filtered.columns:
+            min_year = int(df_users["birth_year"].min())
+            max_year = int(df_users["birth_year"].max())
+            start_decade = (min_year // 10) * 10
+            end_decade = ((max_year // 10) + 1) * 10
+            bins = list(range(start_decade, end_decade + 10, 10))
+            labels = [f"{b}s" for b in bins[:-1]]
+            df_users_filtered["decade"] = pd.cut(
+                df_users_filtered["birth_year"],
+                bins=bins,
+                labels=labels,
+                right=False,
+            )
+            df_users_filtered = df_users_filtered[
+                df_users_filtered["decade"] == st.session_state.selected_decade
+            ]
 
     # 3. Add a Reset Button at the top
-    if st.session_state.selected_country:
+    if st.session_state.selected_country or st.session_state.selected_decade:
         col_title, col_reset = st.columns([4, 1])
         with col_title:
-            st.info(
-                f"Active Filter: Country = **{st.session_state.selected_country}**"
-            )
+            active_filters = []
+            if st.session_state.selected_country:
+                active_filters.append(f"Country = **{st.session_state.selected_country}**")
+            if st.session_state.selected_decade:
+                active_filters.append(f"Decade = **{st.session_state.selected_decade}**")
+            st.info(f"Active Filters: {', '.join(active_filters)}")
         with col_reset:
             if st.button("Reset Filter"):
                 st.session_state.selected_country = None
+                st.session_state.selected_decade = None
                 st.rerun()
 
-    # Filter df_users if a country is clicked on the map
-    if st.session_state.selected_country:
-        df_users_filtered = df_users[
-            df_users["country"] == st.session_state.selected_country
-        ]
-    else:
-        df_users_filtered = df_users.copy()
     # ==========================================
     # SECTION 1: DEMOGRAPHICS (AGE & GEOGRAPHY)
     # ==========================================
     st.subheader("Demographic Breakdown")
     col_demo1, col_demo2 = st.columns(2)
     with col_demo1:
-        # Create decade bins using df_users_filtered
-        if "birth_year" in df_users_filtered.columns:
+        # Create decade bins using df_users (filtered by country if active)
+        df_pie_source = df_users.copy()
+        if st.session_state.selected_country:
+            df_pie_source = df_pie_source[
+                df_pie_source["country"] == st.session_state.selected_country
+            ]
+
+        if "birth_year" in df_pie_source.columns:
             min_year = int(df_users["birth_year"].min())
             max_year = int(df_users["birth_year"].max())
 
@@ -234,16 +256,15 @@ elif page == "User Activity Analytics":
             bins = list(range(start_decade, end_decade + 10, 10))
             labels = [f"{b}s" for b in bins[:-1]]
 
-            # Filtered decade cutting
-            df_users_filtered["decade"] = pd.cut(
-                df_users_filtered["birth_year"],
+            df_pie_source["decade"] = pd.cut(
+                df_pie_source["birth_year"],
                 bins=bins,
                 labels=labels,
                 right=False,
             )
 
             decade_counts = (
-                df_users_filtered["decade"]
+                df_pie_source["decade"]
                 .value_counts()
                 .reset_index()
                 .sort_values("decade")
@@ -262,6 +283,7 @@ elif page == "User Activity Analytics":
                 values="User Count",
                 hole=0.4,
                 title=pie_title,
+                custom_data=["Decade"],
                 color_discrete_sequence=px.colors.sequential.RdBu,
             )
 
@@ -274,84 +296,52 @@ elif page == "User Activity Analytics":
                 showlegend=True, margin=dict(t=40, b=20, l=20, r=20)
             )
 
-            st.plotly_chart(fig_decade, use_container_width=True)
+            # Render pie chart with click event capture enabled
+            pie_event = st.plotly_chart(
+                fig_decade,
+                use_container_width=True,
+                on_select="rerun",
+                selection_mode="points",
+            )
+
+            # Capture decade click event
+            if (
+                pie_event
+                and "selection" in pie_event
+                and pie_event["selection"]["points"]
+            ):
+                clicked_point = pie_event["selection"]["points"][0]
+                if "customdata" in clicked_point:
+                    selected_decade = clicked_point["customdata"][0]
+                    if st.session_state.selected_decade != selected_decade:
+                        st.session_state.selected_decade = selected_decade
+                        st.rerun()
 
     with col_demo2:
         # Geographic Distribution Map
-        if "country" in df_users.columns:
+        if "country" in df_users_filtered.columns:
             country_counts = (
-                df_users.groupby("country")["user_id"].nunique().reset_index()
+                df_users_filtered.groupby("country")["user_id"].nunique().reset_index()
             )
             country_counts.columns = ["country", "User Count"]
 
             iso2_to_iso3 = {
-                "AF": "AFG",
-                "AL": "ALB",
-                "DZ": "DZA",
-                "AD": "AND",
-                "AO": "AGO",
-                "AR": "ARG",
-                "AM": "ARM",
-                "AU": "AUS",
-                "AT": "AUT",
-                "AZ": "AZE",
-                "BE": "BEL",
-                "BG": "BGR",
-                "BR": "BRA",
-                "CA": "CAN",
-                "CH": "CHE",
-                "CL": "CHL",
-                "CN": "CHN",
-                "CO": "COL",
-                "CY": "CYP",
-                "CZ": "CZE",
-                "DE": "DEU",
-                "DK": "DNK",
-                "ES": "ESP",
-                "EE": "EST",
-                "FI": "FIN",
-                "FR": "FRA",
-                "GB": "GBR",
-                "GR": "GRC",
-                "HK": "HKG",
-                "HR": "HRV",
-                "HU": "HUN",
-                "ID": "IDN",
-                "IE": "IRL",
-                "IL": "ISR",
-                "IN": "IND",
-                "IS": "ISL",
-                "IT": "ITA",
-                "JP": "JPN",
-                "KR": "KOR",
-                "LT": "LTU",
-                "LU": "LUX",
-                "LV": "LVA",
-                "MT": "MLT",
-                "MX": "MEX",
-                "MY": "MYS",
-                "NL": "NLD",
-                "NO": "NOR",
-                "NZ": "NZL",
-                "PL": "POL",
-                "PT": "PRT",
-                "RO": "ROU",
-                "RU": "RUS",
-                "SG": "SGP",
-                "SK": "SVK",
-                "SI": "SVN",
-                "SE": "SWE",
-                "TR": "TUR",
-                "UA": "UKR",
-                "US": "USA",
-                "ZA": "ZAF",
+                "AF": "AFG", "AL": "ALB", "DZ": "DZA", "AD": "AND", "AO": "AGO",
+                "AR": "ARG", "AM": "ARM", "AU": "AUS", "AT": "AUT", "AZ": "AZE",
+                "BE": "BEL", "BG": "BGR", "BR": "BRA", "CA": "CAN", "CH": "CHE",
+                "CL": "CHL", "CN": "CHN", "CO": "COL", "CY": "CYP", "CZ": "CZE",
+                "DE": "DEU", "DK": "DNK", "ES": "ESP", "EE": "EST", "FI": "FIN",
+                "FR": "FRA", "GB": "GBR", "GR": "GRC", "HK": "HKG", "HR": "HRV",
+                "HU": "HUN", "ID": "IDN", "IE": "IRL", "IL": "ISR", "IN": "IND",
+                "IS": "ISL", "IT": "ITA", "JP": "JPN", "KR": "KOR", "LT": "LTU",
+                "LU": "LUX", "LV": "LVA", "MT": "MLT", "MX": "MEX", "MY": "MYS",
+                "NL": "NLD", "NO": "NOR", "NZ": "NZL", "PL": "POL", "PT": "PRT",
+                "RO": "ROU", "RU": "RUS", "SG": "SGP", "SK": "SVK", "SI": "SVN",
+                "SE": "SWE", "TR": "TUR", "UA": "UKR", "US": "USA", "ZA": "ZAF",
             }
 
-            country_counts["iso_alpha"] = country_counts["country"].map(
-                iso2_to_iso3
-            )
+            country_counts["iso_alpha"] = country_counts["country"].map(iso2_to_iso3)
 
-            # Flat 2D Map using ISO-3 codes
             fig_map = px.choropleth(
                 country_counts,
                 locations="iso_alpha",
@@ -362,7 +352,6 @@ elif page == "User Activity Analytics":
                 color_continuous_scale="Viridis",
             )
 
-            # Configure static flat projection with scroll/zoom controls disabled
             fig_map.update_layout(
                 geo=dict(
                     showframe=False,
@@ -373,7 +362,6 @@ elif page == "User Activity Analytics":
                 margin=dict(t=40, b=20, l=20, r=20),
             )
 
-            # Render map with interactive click capture enabled
             map_event = st.plotly_chart(
                 fig_map,
                 use_container_width=True,
@@ -382,7 +370,6 @@ elif page == "User Activity Analytics":
                 selection_mode="points",
             )
 
-            # Capture country click event from the map
             if (
                 map_event
                 and "selection" in map_event
@@ -400,7 +387,6 @@ elif page == "User Activity Analytics":
     # SECTION 2: TIME-SERIES MONITORING CHART
     # ==========================================
     st.subheader("Time-Series Monitoring Chart")
-    # Load the summary dataset
     @st.cache_data
     def load_summary_data():
         df_summary = pd.read_csv("data/df_daily_transaction_summary.csv")
@@ -411,38 +397,38 @@ elif page == "User Activity Analytics":
 
     daily_metrics_raw = load_summary_data()
 
-    # Safely check if 'country' column exists in the dataset before filtering
-    if (
-        st.session_state.selected_country
-        and "country" in daily_metrics_raw.columns
-    ):
-        filtered_df = daily_metrics_raw[
-            daily_metrics_raw["country"] == st.session_state.selected_country
-        ]
+    # Filter transactions based on active user filters
+    filtered_df = daily_metrics_raw.copy()
 
-        if not filtered_df.empty:
-            daily_metrics = (
-                filtered_df.groupby("created_date")["daily_volume"]
-                .sum()
-                .reset_index()
-            )
-            chart_title = f"Daily Transaction Volume (USD) — {st.session_state.selected_country}"
-        else:
-            daily_metrics = pd.DataFrame(columns=["created_date", "daily_volume"])
-            chart_title = f"Daily Transaction Volume (USD) — {st.session_state.selected_country} (No Data)"
-    else:
+    # Apply country filter if selected
+    if st.session_state.selected_country and "country" in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df["country"] == st.session_state.selected_country]
+
+    # Apply user_id filter if decade is selected and user IDs exist in summary table
+    if st.session_state.selected_decade and "user_id" in filtered_df.columns:
+        valid_user_ids = df_users_filtered["user_id"].unique()
+        filtered_df = filtered_df[filtered_df["user_id"].isin(valid_user_ids)]
+
+    if not filtered_df.empty:
         daily_metrics = (
-            daily_metrics_raw.groupby("created_date")["daily_volume"]
+            filtered_df.groupby("created_date")["daily_volume"]
             .sum()
             .reset_index()
         )
-        chart_title = "Daily Transaction Volume (USD) — Global"
+        title_suffix = []
+        if st.session_state.selected_country:
+            title_suffix.append(st.session_state.selected_country)
+        if st.session_state.selected_decade:
+            title_suffix.append(st.session_state.selected_decade)
 
-    # Display notice if selected country has no transactions
+        suffix_str = f" — {' | '.join(title_suffix)}" if title_suffix else " — Global"
+        chart_title = f"Daily Transaction Volume (USD){suffix_str}"
+    else:
+        daily_metrics = pd.DataFrame(columns=["created_date", "daily_volume"])
+        chart_title = "Daily Transaction Volume (USD) (No Data)"
+
     if daily_metrics.empty:
-        st.warning(
-            f"No transaction records found for {st.session_state.selected_country}."
-        )
+        st.warning("No transaction records found for the selected filters.")
     else:
         fig = px.line(
             daily_metrics,
@@ -461,11 +447,6 @@ elif page == "User Activity Analytics":
         )
 
         st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("""
-This time-series chart tracks daily `COMPLETED` transaction volumes across our global user base.
-Use this view to identify seasonal fluctuations in payment activity.
-""")
 
 elif page == "Churn Predictor":
     st.title("🎯 Single User Churn Prediction")
