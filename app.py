@@ -76,7 +76,6 @@ if page == "Project Overview":
             "assets/neobank_banner.png",
             use_container_width=True,
         )
-
 elif page == "Overview & KPIs":
     st.title("🏦 NeoBank Health Overview")
     st.caption(
@@ -90,17 +89,49 @@ elif page == "Overview & KPIs":
     # Metrics calculation
     total_users = df_model["user_id"].nunique() if "user_id" in df_model.columns else len(df_model)
     total_countries = df_users["country"].nunique() if "country" in df_users.columns else 0
-    churn_rate = (df_model["churn"].mean()) * 100
+    churn_rate = (df_model["churn"].mean()) * 100 if "churn" in df_model.columns else 0.0
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Users", f"{total_users:,}")
-    col2.metric("Countries Served", f"{total_countries}")
-    col3.metric(
-        "Overall Churn Rate",
-        f"{churn_rate:.1f}%",
-        delta=f"+{churn_rate:.1f}%",
-        delta_color="inverse",
-    )
+    # Calculate churned vs retained user counts
+    churned_users = int(df_model["churn"].sum()) if "churn" in df_model.columns else 0
+    retained_users = max(total_users - churned_users, 0)
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        st.metric("Countries Served", f"{total_countries}")
+        st.metric(
+            "Overall Churn Rate",
+            f"{churn_rate:.1f}%",
+            delta=f"+{churn_rate:.1f}%",
+            delta_color="inverse",
+        )
+
+    with col2:
+        df_user_breakdown = pd.DataFrame({
+            "Status": ["Retained Users", "Churned Users"],
+            "Count": [retained_users, churned_users]
+        })
+        fig_user_pie = px.pie(
+            df_user_breakdown,
+            names="Status",
+            values="Count",
+            hole=0.5,
+            title=f"Total Users: {total_users:,}",
+            color="Status",
+            color_discrete_map={"Retained Users": "#2ca02c", "Churned Users": "#d62728"}
+        )
+        fig_user_pie.update_traces(
+            textposition="inside",
+            textinfo="percent+label",
+            hovertemplate="<b>%{label}</b><br>Users: %{value:,}<br>Percentage: %{percent}"
+        )
+        fig_user_pie.update_layout(
+            showlegend=True,
+            height=240,
+            margin=dict(t=40, b=10, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="center", x=0.5)
+        )
+        st.plotly_chart(fig_user_pie, use_container_width=True)
 
     st.divider()
 
@@ -111,37 +142,54 @@ elif page == "Overview & KPIs":
     total_tx = tx_summary["total_tx_count"]
 
     successful_tx = (
-        df_model["num_completed_transactions"].sum()
+        int(df_model["num_completed_transactions"].sum())
         if "num_completed_transactions" in df_model.columns
         else 0
     )
-    total_volume_usd = (
-        df_model["total_completed_amount_usd"].sum()
-        if "total_completed_amount_usd" in df_model.columns
-        else 0.0
-    )
+    unsuccessful_tx = max(total_tx - successful_tx, 0)
     success_rate = (successful_tx / total_tx * 100) if total_tx > 0 else 0.0
 
-    col_tx1, col_tx2, col_tx3 = st.columns(3)
-    col_tx1.metric("Total Volume (USD)", f"${total_volume_usd:,.2f}")
-    col_tx2.metric(
-        "Completed Transactions",
-        f"{successful_tx:,}",
-        help="Transactions with status COMPLETED",
-    )
-    col_tx3.metric(
-        "Transaction Success Rate",
-        f"{success_rate:.1f}%",
-        f"{total_tx:,} total attempts",
-    )
+    col_tx1, col_tx2 = st.columns([1, 2])
+
+    with col_tx1:
+        st.metric(
+            "Transaction Success Rate",
+            f"{success_rate:.1f}%",
+            f"{total_tx:,} total attempts",
+        )
+
+    with col_tx2:
+        df_tx_breakdown = pd.DataFrame({
+            "Status": ["Completed", "Other Attempts"],
+            "Count": [successful_tx, unsuccessful_tx]
+        })
+        fig_tx_pie = px.pie(
+            df_tx_breakdown,
+            names="Status",
+            values="Count",
+            hole=0.5,
+            title=f"Transaction Breakdown ({total_tx:,} Total)",
+            color="Status",
+            color_discrete_map={"Completed": "#1f77b4", "Other Attempts": "#ff7f0e"}
+        )
+        fig_tx_pie.update_traces(
+            textposition="inside",
+            textinfo="percent+label",
+            hovertemplate="<b>%{label}</b><br>Attempts: %{value:,}<br>Percentage: %{percent}"
+        )
+        fig_tx_pie.update_layout(
+            showlegend=True,
+            height=240,
+            margin=dict(t=40, b=10, l=10, r=10),
+            legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="center", x=0.5)
+        )
+        st.plotly_chart(fig_tx_pie, use_container_width=True)
 
     st.divider()
-
     # ==========================================
     # SECTION 3: USER ENGAGEMENT & PREFERENCES
     # ==========================================
     st.subheader("📲 Marketing Reach & Network Density")
-
     # Push Notification Opt-ins
     push_users = (
         df_model["attributes_notifications_marketing_push"].sum()
