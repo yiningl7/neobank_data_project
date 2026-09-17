@@ -74,8 +74,8 @@ if page == "Project Overview":
     with col2:
         st.image(
             "assets/neobank_banner.png",
-            use_container_width=True,
-        )
+            use_container_width=True,)
+
 elif page == "Overview & KPIs":
     st.title("🏦 NeoBank Health Overview")
     st.caption(
@@ -99,12 +99,6 @@ elif page == "Overview & KPIs":
 
     with col1:
         st.metric("Countries Served", f"{total_countries}")
-        st.metric(
-            "Overall Churn Rate",
-            f"{churn_rate:.1f}%",
-            delta=f"+{churn_rate:.1f}%",
-            delta_color="inverse",
-        )
 
     with col2:
         df_user_breakdown = pd.DataFrame({
@@ -116,7 +110,6 @@ elif page == "Overview & KPIs":
             names="Status",
             values="Count",
             hole=0.5,
-            title=f"Total Users: {total_users:,}",
             color="Status",
             color_discrete_map={"Retained Users": "#2ca02c", "Churned Users": "#d62728"}
         )
@@ -168,7 +161,6 @@ elif page == "Overview & KPIs":
             names="Status",
             values="Count",
             hole=0.5,
-            title=f"Transaction Breakdown ({total_tx:,} Total)",
             color="Status",
             color_discrete_map={"Completed": "#1f77b4", "Other Attempts": "#ff7f0e"}
         )
@@ -289,21 +281,37 @@ elif page == "User Activity Analytics":
             bins=bins,
             labels=labels,
             right=False,
-        )
+        ).astype(str)
 
     # 2. Add Explicit Filter Controls (Country & Age Group)
     col_filter1, col_filter2 = st.columns(2)
     with col_filter1:
         country_options = ["All"] + sorted(list(df_users["country"].dropna().unique()))
-        current_country_idx = country_options.index(st.session_state.selected_country) if st.session_state.selected_country in country_options else 0
-        selected_country_input = st.selectbox("Filter by Country", country_options, index=current_country_idx)
-        st.session_state.selected_country = None if selected_country_input == "All" else selected_country_input
+        current_country_idx = (
+            country_options.index(st.session_state.selected_country)
+            if st.session_state.selected_country in country_options
+            else 0
+        )
+        selected_country_input = st.selectbox(
+            "Filter by Country", country_options, index=current_country_idx
+        )
+        st.session_state.selected_country = (
+            None if selected_country_input == "All" else str(selected_country_input)
+        )
 
     with col_filter2:
         decade_options = ["All"] + sorted(list(df_users["decade"].dropna().unique()))
-        current_decade_idx = decade_options.index(st.session_state.selected_decade) if st.session_state.selected_decade in decade_options else 0
-        selected_decade_input = st.selectbox("Filter by Age Group (Decade)", decade_options, index=current_decade_idx)
-        st.session_state.selected_decade = None if selected_decade_input == "All" else selected_decade_input
+        current_decade_idx = (
+            decade_options.index(st.session_state.selected_decade)
+            if st.session_state.selected_decade in decade_options
+            else 0
+        )
+        selected_decade_input = st.selectbox(
+            "Filter by Age Group (Decade)", decade_options, index=current_decade_idx
+        )
+        st.session_state.selected_decade = (
+            None if selected_decade_input == "All" else str(selected_decade_input)
+        )
 
     # 3. Apply BOTH filters to create df_users_filtered
     df_users_filtered = df_users.copy()
@@ -336,10 +344,11 @@ elif page == "User Activity Analytics":
     # SECTION 1: DEMOGRAPHICS (AGE & GEOGRAPHY)
     # ==========================================
     st.subheader("Demographic Breakdown")
+    st.caption("Filter by country or age group to discover user characteristics.")
+
     col_demo1, col_demo2 = st.columns(2)
 
     with col_demo1:
-        # Pie chart updates based on active filters
         if "decade" in df_users_filtered.columns:
             decade_counts = (
                 df_users_filtered["decade"]
@@ -373,7 +382,6 @@ elif page == "User Activity Analytics":
             st.plotly_chart(fig_decade, use_container_width=True)
 
     with col_demo2:
-        # Geographic Map reflects df_users_filtered (filtered by selected age decade if active)
         if "country" in df_users_filtered.columns:
             country_counts = (
                 df_users_filtered.groupby("country")["user_id"].nunique().reset_index()
@@ -442,10 +450,12 @@ elif page == "User Activity Analytics":
                         st.rerun()
 
     st.divider()
+
     # ==========================================
     # SECTION 2: TIME-SERIES MONITORING CHART
     # ==========================================
     st.subheader("Time-Series Monitoring Chart")
+    st.caption("Track daily transaction volume fluctuations over time for the selected country and demographic segment.")
 
     @st.cache_data
     def load_summary_data():
@@ -453,6 +463,10 @@ elif page == "User Activity Analytics":
         df_summary["created_date"] = pd.to_datetime(
             df_summary["created_date"], format="mixed"
         )
+        if "decade" in df_summary.columns:
+            df_summary["decade"] = df_summary["decade"].astype(str)
+        if "country" in df_summary.columns:
+            df_summary["country"] = df_summary["country"].astype(str)
         return df_summary
 
     daily_metrics_raw = load_summary_data()
@@ -461,13 +475,13 @@ elif page == "User Activity Analytics":
     # Filter summary data by selected country
     if st.session_state.selected_country and "country" in filtered_df.columns:
         filtered_df = filtered_df[
-            filtered_df["country"] == st.session_state.selected_country
+            filtered_df["country"] == str(st.session_state.selected_country)
         ]
 
     # Filter summary data by selected age group (decade)
     if st.session_state.selected_decade and "decade" in filtered_df.columns:
         filtered_df = filtered_df[
-            filtered_df["decade"] == st.session_state.selected_decade
+            filtered_df["decade"] == str(st.session_state.selected_decade)
         ]
 
     if not filtered_df.empty:
@@ -506,6 +520,42 @@ elif page == "User Activity Analytics":
             xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x"
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        st.divider()
+
+    # ==========================================
+    # SECTION 3: USER CONVERSION & CHURN FUNNEL
+    # ==========================================
+    st.subheader("User Conversion & Retained Lifecycle")
+    st.caption("Visualising user progression from initial onboarding to marketing opt-in and active retention based on 60-day activity rules.")
+
+    @st.cache_data
+    def load_funnel_data():
+        return pd.read_csv("data/df_conversion_funnel.csv")
+
+    df_funnel = load_funnel_data()
+
+    fig_funnel = px.funnel(
+        df_funnel,
+        x="Count",
+        y="Stage",
+        title="User Retention Lifecycle Funnel",
+        color_discrete_sequence=["#1f77b4"]
+    )
+
+    fig_funnel.update_traces(
+        textinfo="value+percent initial",
+        textposition="inside",
+        hovertemplate="<b>%{y}</b><br>Count: %{x:,}<br>Retention Rate: %{percentInitial:.1f}%"
+    )
+
+    fig_funnel.update_layout(
+        margin=dict(t=40, b=20, l=20, r=20),
+        height=320,
+        showlegend=False
+    )
+
+    st.plotly_chart(fig_funnel, use_container_width=True)
 
 elif page == "Churn Predictor":
     st.title("🎯 Single User Churn Prediction")
