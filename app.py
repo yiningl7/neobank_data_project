@@ -87,7 +87,7 @@ elif page == "Overview & KPIs":
         "Executive dashboard tracking user acquisition, engagement, and operational metrics."
     )
     st.divider()
-
+    st.subheader("🌍User Base & Global Reach")
     # Metrics calculation
     total_users = df_model["user_id"].nunique() if "user_id" in df_model.columns else len(df_model)
     total_countries = df_users["country"].nunique() if "country" in df_users.columns else 0
@@ -101,7 +101,6 @@ elif page == "Overview & KPIs":
 
     with col1:
         df_country = load_country_data()
-        st.subheader("User Base & Global Reach")
         # Plotly World Map
         fig_map = px.choropleth(
             df_country,
