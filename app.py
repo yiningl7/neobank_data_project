@@ -88,9 +88,6 @@ elif page == "Overview & KPIs":
     )
     st.divider()
 
-    # --- Section 1: Core User & Reach Metrics ---
-    st.subheader("👥 User Base & Global Reach")
-
     # Metrics calculation
     total_users = df_model["user_id"].nunique() if "user_id" in df_model.columns else len(df_model)
     total_countries = df_users["country"].nunique() if "country" in df_users.columns else 0
@@ -114,8 +111,8 @@ elif page == "Overview & KPIs":
             locationmode="country names",  # Or "ISO-3" if using 3-letter country codes (e.g., FRA, GBR)
             color="User Count",
             hover_name="country",
-            color_continuous_scale="Blues",
-            title="Global User Distribution (41 Countries)"
+            color_continuous_scale="Viridis",
+            title="Global User Distribution"
         )
 
         fig_map.update_layout(
