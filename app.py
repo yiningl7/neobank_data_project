@@ -46,6 +46,11 @@ def load_tx_summary():
 def load_model():
     return joblib.load("churn_model.pkl")
 
+# Load country data
+@st.cache_data
+def load_country_data():
+    return pd.read_csv("data/df_country_counts.csv")
+
 clf = load_model()
 
 # 3. NAVIGATION
@@ -98,7 +103,32 @@ elif page == "Overview & KPIs":
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.metric("Countries Served", f"{total_countries}")
+        df_country = load_country_data()
+
+        st.subheader("User Base & Global Reach")
+
+        # Plotly World Map
+        fig_map = px.choropleth(
+            df_country,
+            locations="country",
+            locationmode="country names",  # Or "ISO-3" if using 3-letter country codes (e.g., FRA, GBR)
+            color="User Count",
+            hover_name="country",
+            color_continuous_scale="Blues",
+            title="Global User Distribution (41 Countries)"
+        )
+
+        fig_map.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            geo=dict(
+                showframe=False,
+                showcoastlines=True,
+                projection_type="natural earth"
+            ),
+            height=400
+        )
+
+        st.plotly_chart(fig_map, use_container_width=True)
 
     with col2:
         df_user_breakdown = pd.DataFrame({
