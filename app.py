@@ -526,12 +526,13 @@ elif page == "User Activity Analytics":
     # SECTION 3: USER CONVERSION & CHURN FUNNEL
     # ==========================================
     st.subheader("User Conversion & Retained Lifecycle")
-    st.caption("Visualising user progression from initial onboarding to marketing opt-in and active retention.")
+    st.caption("Visualising user progression from initial onboarding to marketing opt-in and active retention based on 60-day activity rules.")
 
     @st.cache_data
     def load_funnel_data():
         return pd.read_csv("data/df_conversion_funnel.csv")
 
+    # Clear cache or ensure fresh load
     df_funnel = load_funnel_data()
 
     fig_funnel = px.funnel(
@@ -542,11 +543,11 @@ elif page == "User Activity Analytics":
         color_discrete_sequence=["#1f77b4"]
     )
 
-    # Use \% to escape the literal percent sign so Plotly doesn't divide by 100
+    # Use %{percentInitial:.0%} to automatically format as integer percentage (e.g., 100%, 63%, 65%)
     fig_funnel.update_traces(
-        texttemplate="%{value:,}<br>%{percentInitial:.0f}\%",
+        texttemplate="%{value:,}<br>(%{percentInitial:.0%})",
         textposition="inside",
-        hovertemplate="<b>%{y}</b><br>Count: %{x:,}<br>Retention Rate: %{percentInitial:.1f}%"
+        hovertemplate="<b>%{y}</b><br>Count: %{x:,}<br>Retention Rate: %{percentInitial:.1%}"
     )
 
     fig_funnel.update_layout(
