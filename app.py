@@ -520,15 +520,13 @@ elif page == "User Activity Analytics":
             xaxis_title="Date", yaxis_title="Volume ($USD)", hovermode="x"
         )
         st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
+    st.divider()
 
     # ==========================================
     # SECTION 3: USER CONVERSION & CHURN FUNNEL
     # ==========================================
     st.subheader("User Conversion & Retained Lifecycle")
-    st.caption("Visualising user progression from initial onboarding to marketing opt-in and active retention based on 60-day activity rules.")
-
+    st.caption("Visualising user progression from initial onboarding to marketing opt-in and active retention.")
     @st.cache_data
     def load_funnel_data():
         return pd.read_csv("data/df_conversion_funnel.csv")
@@ -543,8 +541,9 @@ elif page == "User Activity Analytics":
         color_discrete_sequence=["#1f77b4"]
     )
 
+    # Use %{value:,} to format numbers with commas instead of 'k'
     fig_funnel.update_traces(
-        textinfo="value+percent initial",
+        texttemplate="%{value:,}<br>%{percentInitial:.0f}%",
         textposition="inside",
         hovertemplate="<b>%{y}</b><br>Count: %{x:,}<br>Retention Rate: %{percentInitial:.1f}%"
     )
