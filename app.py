@@ -527,6 +527,7 @@ elif page == "User Activity Analytics":
     # ==========================================
     st.subheader("User Conversion & Retained Lifecycle")
     st.caption("Visualising user progression from initial onboarding to marketing opt-in and active retention.")
+
     @st.cache_data
     def load_funnel_data():
         return pd.read_csv("data/df_conversion_funnel.csv")
@@ -541,9 +542,9 @@ elif page == "User Activity Analytics":
         color_discrete_sequence=["#1f77b4"]
     )
 
-    # Use %{value:,} to format numbers with commas instead of 'k'
+    # Use \% to escape the literal percent sign so Plotly doesn't divide by 100
     fig_funnel.update_traces(
-        texttemplate="%{value:,}<br>%{percentInitial:.0f}%",
+        texttemplate="%{value:,}<br>%{percentInitial:.0f}\%",
         textposition="inside",
         hovertemplate="<b>%{y}</b><br>Count: %{x:,}<br>Retention Rate: %{percentInitial:.1f}%"
     )
