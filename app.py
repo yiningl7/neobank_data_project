@@ -97,13 +97,11 @@ elif page == "Overview & KPIs":
     churned_users = int(df_model["churn"].sum()) if "churn" in df_model.columns else 0
     retained_users = max(total_users - churned_users, 0)
 
-    col1, col2 = st.columns([1, 2])
+    col1, col2 = st.columns([2, 1])
 
     with col1:
         df_country = load_country_data()
-
         st.subheader("User Base & Global Reach")
-
         # Plotly World Map
         fig_map = px.choropleth(
             df_country,
@@ -112,7 +110,6 @@ elif page == "Overview & KPIs":
             color="User Count",
             hover_name="country",
             color_continuous_scale="Viridis",
-            title="Global User Distribution"
         )
 
         fig_map.update_layout(
